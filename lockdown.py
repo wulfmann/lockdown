@@ -1,191 +1,241 @@
 import os
 import psutil
+from action import Action, TriggerType
+from error import Error
 
 class Locker:
-  
-    '''
-    :param: lockdown          True if you want to trigger screen_lock
-    :param: panic             True if you want to trigger change_password
-    :param: user              String user name that is changed in change_password
-    :param: panic_pass        String password to change when change_password is triggered
-    :param: private_paths     String or list of Strings representing paths or partial paths
-                                that, if seen, trigger actions based on set flags
-    :param: private_exes      String or list of Strings representing executable names
-                                that, if seen, trigger actions based on set flags
-  '''
-  def __init__(self,
-               lockdown=True,
-               panic=False,
-               user='%USERNAME%',
-               panic_pass=None,
-               private_paths=[],
-               private_exes=[]
-               ):
-    self._lockdown = lockdown
-    self._panic = panic
-    self._user = user
-    self._panic_pass = panic_pass
-    self._private_paths = private_paths if isinstance(private_paths, list) else [private_paths]
-    self._private_exes = private_exes if isinstance(private_exes, list) else [private_exes]
-    self._connection_memory = {}
-    self._process_memory = {}
-    self._go = True
-    
-  @property
-  def lockdown(self):
-    return self._lockdown
-    
-  @property
-  def panic(self):
-    return self._panic
-    
-  @property
-  def user(self):
-    return self._user
+	
+	'''
+		:param: lockdown					True if you want to trigger screen_lock
+		:param: panic							True if you want to trigger change_password
+		:param: user							String user name that is changed in change_password
+		:param: panic_pass				String password to change when change_password is triggered
+		:param: private_paths			String or list of Strings representing paths or partial paths
+																that, if seen, trigger actions based on set flags
+		:param: private_exes			String or list of Strings representing executable names
+																that, if seen, trigger actions based on set flags
+	'''
+	def __init__(self,
+							 lockdown=True,
+							 panic=False,
+							 user='%USERNAME%',
+							 panic_pass=None,
+							 private_paths=[],
+							 private_exes=[],
+							 actions=[],
+							 debug=False
+							 ):
+		self._lockdown = lockdown
+		self._panic = panic
+		self._user = user
+		self._panic_pass = panic_pass
+		self._private_paths = private_paths if isinstance(private_paths, list) else [private_paths]
+		self._private_exes = private_exes if isinstance(private_exes, list) else [private_exes]
+		self._connection_memory = {}
+		self._process_memory = {}
+		self._go = True
+		self._actions = actions if isinstance(actions, list) else [actions]
+		self._errored = False
+		self._debug = debug
+		
+	@property
+	def lockdown(self):
+		return self._lockdown
+		
+	@property
+	def panic(self):
+		return self._panic
+		
+	@property
+	def user(self):
+		return self._user
 
-  @property
-  def private_paths(self):
-    return self._private_paths
-    
-  @property
-  def private_exes(self):
-    return self._private_exes
-    
-  @property
-  def panic_pass(self):
-    return self._panic_pass
-  
-  @property
-  def go(self):
-    return self._go
-    
-  @lockdown.setter
-  def lockdown(self, bool):
-    if isinstance(bool, boolean):
-      self._lockdown = bool
+	@property
+	def private_paths(self):
+		return self._private_paths
+		
+	@property
+	def private_exes(self):
+		return self._private_exes
+		
+	@property
+	def panic_pass(self):
+		return self._panic_pass
+	
+	@property
+	def go(self):
+		return self._go
 
-  @panic.setter
-  def panic(self, panic):
-    if isinstance(panic, boolean):
-      self._panic = panic
-      
-  @panic_pass.setter
-  def panic_pass(self, passwd):
-    if isinstance(passwd, str):
-      self._panic_pass = passwd
-      
-  @private_paths.setter
-  def private_paths(self, paths):
-    self._private_paths.extend(paths)
-    
-  @private_exes.setter
-  def private_exes(self, exes):
-    self._private_exes.extend(exes)
-    
-  @go.setter
-  def go(self, go):
-    if isinstance(go, boolean):
-      self._go = go
-    
-  def set_state(self):
-  
-    ''' Set the current state of process list'''
-    
-    process_list = []
-    for process_id in psutil.pids():
-      try:
-        temp_process = psutil.Process(process_id)
-        process_list.append(temp_process)
-        self._process_memory[process_id] = temp_process.name()
-        self._connection_memory[temp_process.name()] = temp_process.connections()
-      except Exception as err:
-        pass
-    return process_list
+	@property
+	def actions(self):
+		return self._actions
+		
+	@actions.setter
+	def actions(self, actions):
+		if isinstance(actions, list):
+			for action in actions:
+				assert isinstance(action, Action), Error.ACTION_TYPE
+				self._actions.append(action)
+		else:
+			assert isinstance(actions, Action), Error.ACTION_TYPE
+			self._actions.append(actions)
+		
+	@lockdown.setter
+	def lockdown(self, bool):
+		if isinstance(bool, boolean):
+			self._lockdown = bool
 
-  def print_change(self, previous_process_list):
-    
-    ''' Print changes to process list to stdout'''
-    
-    current_process_list = self.set_state()
-    matched = 0
-    
-    for proc_current in current_process_list:
-      for proc_previous in previous_process_list:
-        if proc_previous == proc_current:
-          matched = 1
-          break
-      if not matched:
-        name = str(proc_current.name()).lower()
-        print(' +++ ' + name + ' : ' + str(proc_current.pid))
-        if proc_current.connections():
-          print(proc_current.connections())
-        
-        self._check(proc_current)
-        
-      matched = 0
-    matched = 0
-    
-    for proc_previous in previous_process_list:
-      try:
-        name = proc_previous.name()
-      except Exception as err:
-        try:
-          name = str(PROCESS_MEMORY[proc_previous.pid])
-        except Exception as err:
-          name = proc_previous
-      for proc_current in current_process_list:
-        if proc_previous == proc_current:
-          matched = 1
-          break
-      if not matched:
-        print(' --- ' + str(name) + ' : ' + str(proc_previous.pid))
-      matched = 0
+	@panic.setter
+	def panic(self, panic):
+		if isinstance(panic, boolean):
+			self._panic = panic
+			
+	@panic_pass.setter
+	def panic_pass(self, passwd):
+		if isinstance(passwd, str):
+			self._panic_pass = passwd
+			
+	@private_paths.setter
+	def private_paths(self, paths):
+		if isinstance(paths, list):
+			for path in paths:
+				assert(path, str)
+				self._private_paths.append(path.lower())
+		else:
+			assert isinstance(paths, str)
+			self._private_paths.extend(paths.lower())
+		
+	@private_exes.setter
+	def private_exes(self, exes):
+		if isinstance(exes, list):
+			for exe in exes:
+				assert(exe, str)
+				self._private_exes.append(exe.lower())
+		else:
+			assert isinstance(exes, str)
+			self._private_exes.extend(exes.lower())
+		
+	@go.setter
+	def go(self, go):
+		if isinstance(go, boolean):
+			self._go = go
+		
+	def set_state(self):
+	
+		''' Set the current state of process list'''
+		
+		process_list = []
+		for process_id in psutil.pids():
+			try:
+				temp_process = psutil.Process(process_id)
+				process_list.append(temp_process)
+				self._process_memory[process_id] = temp_process.name()
+				self._connection_memory[temp_process.name()] = temp_process.connections()
+			except Exception as err:
+				pass
+		return process_list
 
-    return current_process_list
+	def print_change(self, previous_process_list):
+		
+		''' Print changes to process list to stdout'''
+		
+		current_process_list = self.set_state()
+		matched = 0
+		
+		for proc_current in current_process_list:
+			for proc_previous in previous_process_list:
+				if proc_previous == proc_current:
+					matched = 1
+					break
+			if not matched:
+				name = str(proc_current.name()).lower()
+				print(' +++ ' + name + ' : ' + str(proc_current.pid))
+				if proc_current.connections():
+					print(proc_current.connections())
+				
+				self._check(proc_current)
+				
+			matched = 0
+		matched = 0
+		
+		for proc_previous in previous_process_list:
+			try:
+				name = proc_previous.name()
+			except Exception as err:
+				try:
+					name = str(PROCESS_MEMORY[proc_previous.pid])
+				except Exception as err:
+					name = proc_previous
+			for proc_current in current_process_list:
+				if proc_previous == proc_current:
+					matched = 1
+					break
+			if not matched:
+				print(' --- ' + str(name) + ' : ' + str(proc_previous.pid))
+			matched = 0
 
-  def _check(self, proc_current):
-    
-    ''' Looking for exe or paths
-    may trigger locks or password changes depending on flags set
-    
-    '''
-    
-    name = proc_current.name()
-    for bad in self._private_paths:
-      try: dir = proc_current.cwd().lower()
-      except: dir = ''
-      if bad in dir:
-        if self._panic: self._change_password()
-        if self._lockdown: self._lock_screen()
+		return current_process_list
 
-    if name in self._private_exes:
-      if self._panic: self._change_password()
-      if self._lockdown: self._lock_screen()
+	def _act(self):
+		if self._panic: self._change_password()
+		if self._lockdown: self._lock_screen()
+		
+	def _check(self, proc_current):
+		
+		''' Looking for exe or paths
+		may trigger locks or password changes depending on flags set
+		
+		'''
+		
+		name = proc_current.name().lower()
+		
+		
+		for action in self._actions:
+			if action.trigger_type == TriggerType.PROC_NAME:
+				if action.trigger == name:
+					action.action()
+			elif action.trigger_type == TriggerType.PROC_CWD:
+				try: dir = proc_current.cwd().lower()
+				except: dir = ''
+				if action.trigger in dir:
+					action.action()
+				
+		for bad in self._private_paths:
+			try: dir = proc_current.cwd().lower()
+			except: dir = ''
+			if bad in dir:
+				self._act()
 
-  def _lock_screen(self):
-    
-    ''' Lock the screen'''
-    
-    action = ('gnome-screensaver-command --lock', 'rundll32.exe user32.dll,LockWorkStation')[os.name == 'nt']
-    os.system(action)
+		if name in self._private_exes:
+			self._act()
 
-  
-  def _change_password(self):
+		
+			
+	def _lock_screen(self):
+		
+		''' Lock the screen'''
+		
+		action = ('gnome-screensaver-command --lock', 'rundll32.exe user32.dll,LockWorkStation')[os.name == 'nt']
+		os.system(action)
 
-    ''' Change password
-    windows specific
-    '''
-    
-    try:
-      os.system('net user ' + self._user + ' ' + self._panic_pass)
-    except Exception as err:
-      return 0
-    return 1
+	
+	def _change_password(self):
 
-  def run(self):
-    
-    ''' Loop to collect process state, check for not-allowed, and print changes to screen'''
-    
-    init = self.set_state()
-    while self._go:
-      init = self.print_change(init)
+		''' Change password
+		windows specific
+		'''
+		
+		try:
+			os.system('net user ' + self._user + ' ' + self._panic_pass)
+		except Exception as err:
+			return 0
+		return 1
+
+	def run(self):
+		
+		''' Loop to collect process state, check for not-allowed, and print changes to screen'''
+		
+		init = self.set_state()
+		while self._go:
+			init = self.print_change(init)
+		return

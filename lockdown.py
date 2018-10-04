@@ -15,8 +15,8 @@ class Locker:
     self._panic = panic
     self._user = user
     self._panic_pass = panic_pass
-    self._private_paths = private_paths
-    self._private_exes = private_exes
+    self._private_paths = private_paths if isinstance(private_paths, list) else [private_paths]
+    self._private_exes = private_exes if isinstance(private_exes, list) else [private_exes]
     self._connection_memory = {}
     self._process_memory = {}
     self._go = True

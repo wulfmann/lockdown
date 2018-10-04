@@ -3,6 +3,16 @@ import psutil
 
 class Locker:
   
+    '''
+    :param: lockdown          True if you want to trigger screen_lock
+    :param: panic             True if you want to trigger change_password
+    :param: user              String user name that is changed in change_password
+    :param: panic_pass        String password to change when change_password is triggered
+    :param: private_paths     String or list of Strings representing paths or partial paths
+                                that, if seen, trigger actions based on set flags
+    :param: private_exes      String or list of Strings representing executable names
+                                that, if seen, trigger actions based on set flags
+  '''
   def __init__(self,
                lockdown=True,
                panic=False,

@@ -17,6 +17,8 @@ lock = Locker(panic=True,
 lock.private_exes = 'secret.exe' #append more exes
 lock.private_exes = ['slack.exe', 'excel.exe'] #lists are ok too
 lock.private_paths = '/user' #add new paths the same way
+lock.private_ports = 443 #trigger action on port traffic
+lock.actions = Action(TriggerType.CON_IP, '23.213.175.172', lambda x: print('connected to 23.213.175.172'))
 lock.run() #run main loop
 ```
 

@@ -3,9 +3,13 @@
 - Triggers
   * Found specified process names
   * Found processes spawned from specific directories or subdirectories
+  * Found network connections to specific IPs
+  * Found connections to specific ports
+  
 - Actions
   * Change user password
   * Lock screen
+  * Custom actions now supported
 
 ##### run as admin to use password change feature
 ```python

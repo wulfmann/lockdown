@@ -6,7 +6,7 @@ from error import Error
 class Locker:
   
   '''
-    :param: lockdown          True if you want to trigger screen_lock
+    :param: hooker            True if you want to trigger screen_lock
     :param: panic             True if you want to trigger change_password
     :param: user              String user name that is changed in change_password
     :param: panic_pass        String password to change when change_password is triggered
@@ -16,7 +16,7 @@ class Locker:
                                 that, if seen, trigger actions based on set flags
   '''
   def __init__(self,
-                lockdown=True,
+                hooker=True,
                 panic=False,
                 user='%USERNAME%',
                 panic_pass=None,
@@ -27,7 +27,7 @@ class Locker:
                 actions=[],
                 debug=False
               ):
-    self._lockdown = lockdown
+    self.hooker = hooker
     self._panic = panic
     self._user = user
     self._panic_pass = panic_pass
@@ -43,8 +43,8 @@ class Locker:
     self._debug = debug
     
   @property
-  def lockdown(self):
-    return self._lockdown
+  def hooker(self):
+    return self._hooker
     
   @property
   def panic(self):

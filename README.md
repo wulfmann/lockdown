@@ -13,6 +13,7 @@
 
 ##### run as admin to use password change feature
 ```python
+from action import *
 from lockdown import Locker
 lock = Locker(panic=True,
               panic_pass='panicpassword',
